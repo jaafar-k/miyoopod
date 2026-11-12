@@ -4,5 +4,5 @@
   "launch": "launch.sh",
   "description": "MP3 player for the Miyoo Mini",
   "developer": "danilo.fragoso@gmail.com",
-  "version": "0.0.1"
+  "version": "0.0.9-RTL"
 }

@@ -11,7 +11,7 @@ import (
 
 // App metadata
 const (
-	APP_VERSION = "0.0.8"
+	APP_VERSION = "0.0.9-RTL"
 	APP_AUTHOR  = "Danilo Fragoso"
 	SUPPORT_URL = "https://github.com/danfragoso/miyoopod"
 )
@@ -471,7 +471,7 @@ type Album struct {
 	Tracks  []*Track    `json:"-"` // Reconstructed from library tracks
 	ArtData []byte      `json:"-"` // Don't store in JSON, only used temporarily during extraction
 	ArtExt  string      `json:"-"`
-	ArtPath string      `json:"artPath,omitempty"` // Path to saved artwork file (from MusicBrainz)
+	ArtPath string      `json:"artPath,omitempty"` // Path to saved artwork file
 	ArtImg  image.Image `json:"-"`                 // Decoded at runtime
 }
 
@@ -522,7 +522,6 @@ const (
 	ScreenMenu ScreenType = iota
 	ScreenNowPlaying
 	ScreenQueue
-	ScreenAlbumArt
 	ScreenLibraryScan
 	ScreenLyrics
 )
@@ -535,8 +534,6 @@ func (s ScreenType) String() string {
 		return "now_playing"
 	case ScreenQueue:
 		return "queue"
-	case ScreenAlbumArt:
-		return "album_art"
 	case ScreenLibraryScan:
 		return "library_scan"
 	case ScreenLyrics:
@@ -700,19 +697,7 @@ type MiyooPod struct {
 	// Queue view state
 	QueueScrollOffset int // Scroll position for queue view
 
-	// Album art fetch state (background goroutine updates these, main thread reads for rendering)
-	albumArtStatusFunc func(string)
-	AlbumArtFetching   bool          // Whether a fetch is currently running
-	AlbumArtCurrent    int           // Current album index being fetched
-	AlbumArtTotal      int           // Total albums to fetch
-	AlbumArtAlbumName  string        // Name of album currently being fetched
-	AlbumArtArtist     string        // Artist of album currently being fetched
-	AlbumArtStatus     string        // Status text from MusicBrainz
-	AlbumArtFetched    int           // Success count
-	AlbumArtFailed     int           // Failure count
-	AlbumArtDone       bool          // Fetch complete, showing results
-	AlbumArtElapsed    string        // Elapsed time for results display
-	RedrawChan         chan struct{} // Background goroutines signal main thread to redraw
+	RedrawChan chan struct{} // Background goroutines signal main thread to redraw
 
 	// Library scan state (background goroutine)
 	LibScanRunning     bool   // Whether a scan is currently running
@@ -737,13 +722,6 @@ type MiyooPod struct {
 	InstallationID   string // Unique ID for this installation
 	LocalLogsEnabled bool   // Whether to write logs to file
 	SentryEnabled    bool   // Whether to send events to Sentry
-
-	// Update state
-	UpdateAvailable     bool          // Whether an update is available
-	UpdateInfo          *VersionInfo  // Remote version info when update is available
-	UpdateNotifications bool          // Whether to show auto update popup on launch
-	VersionCheckDone    chan struct{} // Closed when async version check completes
-	ShowingUpdatePrompt bool          // True when update prompt overlay is visible
 
 	// Seek state (fast forward / rewind on Now Playing)
 	SeekHeld      bool      // Whether L/R is currently held down

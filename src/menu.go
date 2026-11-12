@@ -138,14 +138,6 @@ func (app *MiyooPod) buildRootMenu() *MenuScreen {
 		},
 	})
 
-	// Fetch Album Art
-	items = append(items, &MenuItem{
-		Label: "Fetch Album Art",
-		Action: func() {
-			app.scanAlbumArt()
-		},
-	})
-
 	// Exit
 	items = append(items, &MenuItem{
 		Label: "Exit",
@@ -364,26 +356,6 @@ func (app *MiyooPod) buildSettingsMenuItems(root *MenuScreen) []*MenuItem {
 		Label: app.cpuOnLockLabel(),
 		Action: func() {
 			app.toggleKeepPerformanceOnLock()
-		},
-	})
-
-	// Check for Updates
-	items = append(items, &MenuItem{
-		Label: "Check for Updates",
-		Action: func() {
-			app.manualCheckForUpdates()
-		},
-	})
-
-	// Update Notifications toggle
-	updateNotifStatus := "Off"
-	if app.UpdateNotifications {
-		updateNotifStatus = "On"
-	}
-	items = append(items, &MenuItem{
-		Label: "Update Notifications: " + updateNotifStatus,
-		Action: func() {
-			app.toggleUpdateNotifications()
 		},
 	})
 

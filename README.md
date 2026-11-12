@@ -7,10 +7,9 @@ MP3 player for the Miyoo Mini Plus, Mini v4, and Mini Flip running OnionOS. Insp
 - iPod-inspired user interface with multiple themes
 - Browse by Artists, Composers, Albums, and Songs
 - Search/filter lists with on-screen A-Z keyboard
-- Album art display with automatic fetching from MusicBrainz
+- Album art display from embedded tags
 - Shuffle and repeat modes
 - Seek/fast-forward/rewind with accelerating speed
-- Over-the-air updates
 - Session persistence (queue, position, shuffle/repeat restored on launch)
 - Native 640×480 resolution optimized for Miyoo Mini
 - 17 customizable themes (Classic iPod, Dark Blue, Nord, Cyberpunk, and more)
@@ -55,30 +54,17 @@ MiyooPod supports **MP3**, **FLAC**, and **OGG/Vorbis** audio files.
 
 ## Album Artwork
 
-### Embedded Artwork
-MiyooPod automatically extracts album art embedded in your MP3 files' ID3 tags.
-
-### Automatic Download from MusicBrainz
-For albums without embedded artwork, MiyooPod can automatically fetch album covers:
-
-1. Navigate to **Settings** from the main menu
-2. Select **"Fetch Album Art"**
-3. MiyooPod will scan your library and download missing album artwork
-
-> **Note:** Requires internet connection via WiFi. Artwork is stored in `/mnt/SDCARD/Media/Music/.miyoopod_artwork/`
+MiyooPod automatically extracts album art embedded in your audio files' tags. Artwork cache is stored in `/mnt/SDCARD/Media/Music/.miyoopod_artwork/`.
 
 ## Settings
 
 - **Themes** - Choose from 17 visual themes (Classic iPod, Dark, Dark Blue, Light, Nord, Solarized Dark, Matrix Green, Retro Amber, Purple Haze, Cyberpunk, Coffee, Ocean, Forest, Sunset, Neon, Midnight, Gruvbox, Candy)
 - **Screen Lock** - Press the POWER button to lock/unlock the screen, preventing accidental presses during playback. Press MENU + START to quit the app
 - **Auto Screen Lock** - Automatically lock after a period of inactivity (1/3/5/10 min, or disabled)
-- **Fetch Album Art** - Automatically download missing album artwork from MusicBrainz
-- **Check for Updates** - Manually check for and install OTA updates
-- **Update Notifications** - Toggle automatic update prompts on/off
 - **Clear App Data** - Reset library cache, settings, and artwork
 - **Toggle Logs** - Enable or disable debug logging
 - **Rescan Library** - Force a complete rescan of your music library
-- **About** - View app version and check for updates
+- **About** - View app version
 
 ## Technical Details
 
@@ -118,7 +104,7 @@ MiyooPod will rescan your library on the next launch.
 
 ### Album art not displaying correctly
 
-Open **Settings** → **Clear App Data** to wipe the artwork cache and library metadata. MiyooPod will rebuild everything on the next launch. You can then use **Fetch Album Art** again to re-download missing covers.
+Open **Settings** → **Clear App Data** to wipe the artwork cache and library metadata. MiyooPod will rebuild everything on the next launch from embedded tags.
 
 ### Checking logs
 
@@ -130,14 +116,6 @@ If the app is misbehaving, enable logging from **Settings** → **Toggle Logs**,
 
 Attach this file when reporting a bug on [GitHub Issues](https://github.com/danfragoso/miyoopod/issues).
 
-### A broken OTA update made the app unusable
-
-If an update left the app in a broken state, manually reinstall the latest version:
-
-1. Download [MiyooPod.zip](https://github.com/danfragoso/miyoopod/raw/refs/heads/main/releases/MiyooPod.zip)
-2. Extract and copy the `MiyooPod` folder to `/App` on your SD card, overwriting the existing files
-3. Your music library and settings are stored separately and will not be affected
-
 ## Building from Source
 
 ```bash
@@ -148,6 +126,14 @@ make go
 The build process uses CGO to compile Go source with C bindings and bundles all required shared libraries.
 
 ## Changelog
+
+### Version 0.0.9-RTL
+
+**Changes**
+- Stripped release binary; OTA updater no longer shipped (offline Miyoo Mini)
+- Removed Check for Updates / Update Notifications
+- Removed Fetch Album Art (MusicBrainz); embedded tag art only
+- Arabic/RTL support, browse by Composer, MENU + START to quit
 
 ### Version 0.0.8
 

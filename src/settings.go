@@ -16,7 +16,6 @@ type Settings struct {
 	LocalLogsEnabled      bool   `json:"local_logs_enabled,omitempty"`
 	SentryEnabled         bool   `json:"sentry_enabled,omitempty"`
 	AutoLockMinutes       *int   `json:"auto_lock_minutes,omitempty"`
-	UpdateNotifications   *bool  `json:"update_notifications,omitempty"`
 	Volume                *int   `json:"volume,omitempty"`
 	Brightness            *int   `json:"brightness,omitempty"`
 	FontSize              *int   `json:"font_size,omitempty"`
@@ -85,16 +84,6 @@ func (app *MiyooPod) loadSettings() error {
 	}
 	// else keep default value (3 minutes)
 
-	// Restore update notifications preference (default to true if not set)
-	if settings.UpdateNotifications != nil {
-		app.UpdateNotifications = *settings.UpdateNotifications
-		if app.UpdateNotifications {
-			logMsg("Update notifications enabled")
-		} else {
-			logMsg("Update notifications disabled")
-		}
-	}
-
 	// Restore volume (default 50 if not set)
 	if settings.Volume != nil {
 		app.SystemVolume = *settings.Volume
@@ -139,7 +128,6 @@ func (app *MiyooPod) saveSettings() error {
 		LocalLogsEnabled:      app.LocalLogsEnabled,
 		SentryEnabled:         app.SentryEnabled,
 		AutoLockMinutes:       &app.AutoLockMinutes,
-		UpdateNotifications:   &app.UpdateNotifications,
 		Volume:                &app.SystemVolume,
 		Brightness:            &app.SystemBrightness,
 		FontSize:              &app.FontSize,

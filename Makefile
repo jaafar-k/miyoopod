@@ -1,11 +1,9 @@
+GO_LDFLAGS := -s -w
+
 .PHONY: go
 go:
 	@go run scripts/build-inject.go
-	CC=arm-linux-gnueabihf-gcc CGO_ENABLED=1 GOARCH=arm GOOS=linux go build -o App/MiyooPod/MiyooPod src/*.go
-
-.PHONY: updater
-updater:
-	CC=arm-linux-gnueabihf-gcc CGO_ENABLED=1 GOARCH=arm GOOS=linux go build -o App/MiyooPod/updater updater/*.go
+	CC=arm-linux-gnueabihf-gcc CGO_ENABLED=1 GOARCH=arm GOOS=linux go build -ldflags="$(GO_LDFLAGS)" -o App/MiyooPod/MiyooPod src/*.go
 
 .PHONY: install-hooks
 install-hooks:
@@ -27,15 +25,14 @@ package:
 	fi; \
 	echo "Updating APP_VERSION to $$VERSION..."; \
 	go run scripts/update-version.go $$VERSION; \
-	echo "Building app..."; \
+	echo "Building app (stripped)..."; \
 	go run scripts/build-inject.go; \
-	CC=arm-linux-gnueabihf-gcc CGO_ENABLED=1 GOARCH=arm GOOS=linux go build -o App/MiyooPod/MiyooPod src/*.go; \
-	echo "Building updater..."; \
-	CC=arm-linux-gnueabihf-gcc CGO_ENABLED=1 GOARCH=arm GOOS=linux go build -o App/MiyooPod/updater_new updater/*.go; \
+	rm -f App/MiyooPod/updater App/MiyooPod/updater_new; \
+	CC=arm-linux-gnueabihf-gcc CGO_ENABLED=1 GOARCH=arm GOOS=linux go build -ldflags="$(GO_LDFLAGS)" -o App/MiyooPod/MiyooPod src/*.go; \
 	echo "Creating release directory..."; \
 	mkdir -p releases; \
 	echo "Packaging release..."; \
-	cd App && zip -r ../releases/MiyooPod-$$VERSION.zip MiyooPod && cd ..; \
+	cd App && zip -r ../releases/MiyooPod-$$VERSION.zip MiyooPod -x "MiyooPod/updater" "MiyooPod/updater_new" "MiyooPod/*.log" && cd ..; \
 	cp releases/MiyooPod-$$VERSION.zip releases/MiyooPod.zip; \
 	echo "Updating version.json with checksum..."; \
 	go run scripts/update-version.go $$VERSION releases/MiyooPod.zip $$CHANGELOG; \

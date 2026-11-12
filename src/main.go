@@ -81,7 +81,6 @@ func (app *MiyooPod) Init() {
 
 	// Power management defaults
 	app.AutoLockMinutes = 3 // Auto-lock after 3 minutes of inactivity
-	app.UpdateNotifications = true // Default: show update prompts
 	app.LastActivityTime = time.Now()
 
 	// Pre-render digit sprites for fast time display (bypass gg in hot path)
@@ -104,13 +103,6 @@ func (app *MiyooPod) Init() {
 
 	// Draw splash screen with logo (now using restored theme if available)
 	app.drawLogoSplash()
-
-	// Check for updates asynchronously (don't block startup)
-	app.VersionCheckDone = make(chan struct{})
-	go func() {
-		app.checkVersion()
-		close(app.VersionCheckDone)
-	}()
 
 	// Start power button monitor (reads directly from /dev/input/event0)
 	app.startPowerButtonMonitor()
@@ -290,17 +282,6 @@ func main() {
 	// Draw initial menu
 	app.drawCurrentScreen()
 
-	// Check for update status from a previous OTA update
-	app.handleUpdateStatus()
-
-	// Wait for async version check to complete, then show update prompt if needed
-	go func() {
-		<-app.VersionCheckDone
-		if app.UpdateAvailable && app.UpdateNotifications && app.Running {
-			app.showUpdatePrompt()
-		}
-	}()
-
 	// Main loop: poll SDL events on main thread (required by SDL2)
 	// SDL_PollEvent MUST run on the thread that called SDL_Init (LockOSThread in init)
 	// Sleep between polls to keep CPU usage low (replaces old runtime.Gosched spin loop)
@@ -438,11 +419,6 @@ func (app *MiyooPod) handleKey(key Key) {
 		return
 	}
 
-	// If update prompt is showing, it consumes all keys
-	if app.handleUpdatePromptKey(key) {
-		return
-	}
-
 	// If locked, swallow all controller keys so nothing triggers accidentally.
 	// Lock/unlock is handled solely by the POWER button (see input.go).
 	if app.Locked {
@@ -457,8 +433,8 @@ func (app *MiyooPod) handleKey(key Key) {
 	// Global keys (work from any screen)
 	switch key {
 	case START:
-		// Go to Now Playing screen (not allowed during library scan or album art fetch)
-		if app.CurrentScreen == ScreenLibraryScan || app.CurrentScreen == ScreenAlbumArt {
+		// Go to Now Playing screen (not allowed during library scan)
+		if app.CurrentScreen == ScreenLibraryScan {
 			return
 		}
 		// Let ScreenNowPlaying handle START itself (e.g. to open lyrics)
@@ -474,7 +450,7 @@ func (app *MiyooPod) handleKey(key Key) {
 		}
 		return
 	case L:
-		if app.CurrentScreen == ScreenLibraryScan || app.CurrentScreen == ScreenAlbumArt {
+		if app.CurrentScreen == ScreenLibraryScan {
 			return
 		}
 		if app.CurrentScreen == ScreenNowPlaying && app.Playing != nil && app.Playing.State != StateStopped {
@@ -485,7 +461,7 @@ func (app *MiyooPod) handleKey(key Key) {
 		app.drawCurrentScreen()
 		return
 	case R:
-		if app.CurrentScreen == ScreenLibraryScan || app.CurrentScreen == ScreenAlbumArt {
+		if app.CurrentScreen == ScreenLibraryScan {
 			return
 		}
 		if app.CurrentScreen == ScreenNowPlaying && app.Playing != nil && app.Playing.State != StateStopped {
@@ -496,7 +472,7 @@ func (app *MiyooPod) handleKey(key Key) {
 		app.drawCurrentScreen()
 		return
 	case SELECT:
-		if app.CurrentScreen == ScreenLibraryScan || app.CurrentScreen == ScreenAlbumArt {
+		if app.CurrentScreen == ScreenLibraryScan {
 			return
 		}
 		// On queue screen, SELECT clears queue (handled by handleQueueKey)
@@ -522,8 +498,6 @@ func (app *MiyooPod) handleKey(key Key) {
 		app.handleNowPlayingKey(key)
 	case ScreenQueue:
 		app.handleQueueKey(key)
-	case ScreenAlbumArt:
-		app.handleAlbumArtKey(key)
 	case ScreenLibraryScan:
 		app.handleLibraryScanKey(key)
 	case ScreenLyrics:
@@ -571,9 +545,6 @@ func (app *MiyooPod) drawCurrentScreen() {
 	case ScreenQueue:
 		app.drawQueueScreen()
 		app.drawStatusBar()
-	case ScreenAlbumArt:
-		app.drawAlbumArtScreen()
-		app.drawAlbumArtStatusBar()
 	case ScreenLibraryScan:
 		app.drawLibraryScanScreen()
 		app.drawLibraryScanStatusBar()
@@ -593,13 +564,6 @@ func (app *MiyooPod) drawCurrentScreen() {
 
 	// Draw error popup overlay if active
 	app.drawErrorPopup()
-
-	// Draw update prompt overlay if showing
-	if app.ShowingUpdatePrompt {
-		app.drawUpdatePromptOverlay()
-		// drawUpdatePromptOverlay calls triggerRefresh, so skip the one below
-		return
-	}
 
 	// Restore brightness now that overlay is gone (avoids bright lock overlay flash)
 	if app.BrightnessNeedsRestore {

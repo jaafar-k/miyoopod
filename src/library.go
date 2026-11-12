@@ -302,36 +302,6 @@ func (app *MiyooPod) scanTrack(path string) {
 	}
 }
 
-// fetchMissingAlbumArt fetches album artwork from MusicBrainz for albums without embedded art
-func (app *MiyooPod) fetchMissingAlbumArt() {
-	missingCount := 0
-	fetchedCount := 0
-
-	// Count albums without art
-	for _, album := range app.Library.Albums {
-		if album.ArtData == nil {
-			missingCount++
-		}
-	}
-
-	if missingCount == 0 {
-		logMsg("[MUSICBRAINZ] All albums have artwork, skipping MusicBrainz fetch")
-		return
-	}
-
-	logMsg(fmt.Sprintf("[MUSICBRAINZ] Fetching artwork for %d albums without embedded art...", missingCount))
-
-	for _, album := range app.Library.Albums {
-		if album.ArtData == nil && album.Name != "" && album.Artist != "" {
-			if app.fetchAlbumArtFromMusicBrainz(album) {
-				fetchedCount++
-			}
-		}
-	}
-
-	logMsg(fmt.Sprintf("[MUSICBRAINZ] Fetched artwork for %d/%d albums", fetchedCount, missingCount))
-}
-
 // decodeArtwork decodes raw artwork bytes into an image
 func (app *MiyooPod) decodeArtwork(artData []byte, artExt string) image.Image {
 	if len(artData) == 0 {
