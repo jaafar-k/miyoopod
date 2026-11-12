@@ -172,26 +172,26 @@ func (app *MiyooPod) drawAlbumArtScreen() {
 		dc.DrawRectangle(0, float64(y), SCREEN_WIDTH, MENU_ITEM_HEIGHT)
 		dc.Fill()
 
-		dc.SetFontFace(app.FontMenu)
 		dc.SetHexColor(app.CurrentTheme.SelTxt)
 		albumLabel := app.truncateText(app.AlbumArtAlbumName, float64(SCREEN_WIDTH-MENU_LEFT_PAD-MENU_RIGHT_PAD), app.FontMenu)
+		dc.SetFontFace(app.fontForText(app.AlbumArtAlbumName, app.FontMenu))
 		textY = float64(y) + float64(MENU_ITEM_HEIGHT)/2
 		dc.DrawStringAnchored(albumLabel, float64(MENU_LEFT_PAD), textY, 0, 0.5)
 
 		// Artist on right
-		dc.SetFontFace(app.FontSmall)
 		dc.SetHexColor(app.CurrentTheme.SelTxt)
 		artistLabel := app.truncateText(app.AlbumArtArtist, 200, app.FontSmall)
+		dc.SetFontFace(app.fontForText(app.AlbumArtArtist, app.FontSmall))
 		dc.DrawStringAnchored(artistLabel, float64(SCREEN_WIDTH-MENU_RIGHT_PAD), textY, 1, 0.5)
 		y += MENU_ITEM_HEIGHT
 	}
 
 	// Row 3: Status message
 	if app.AlbumArtStatus != "" {
-		dc.SetFontFace(app.FontSmall)
 		dc.SetHexColor(app.CurrentTheme.Dim)
 		textY = float64(y) + float64(MENU_ITEM_HEIGHT)/2
 		statusText := app.truncateText(app.AlbumArtStatus, float64(SCREEN_WIDTH-MENU_LEFT_PAD-MENU_RIGHT_PAD), app.FontSmall)
+		dc.SetFontFace(app.fontForText(app.AlbumArtStatus, app.FontSmall))
 		dc.DrawStringAnchored(statusText, float64(MENU_LEFT_PAD), textY, 0, 0.5)
 		y += MENU_ITEM_HEIGHT
 	}

@@ -26,7 +26,7 @@ const (
 )
 
 // isSearchableMenu returns true if the current menu shows items that can be searched
-// (Artists, Albums, Songs, or Playlists lists — not the root menu or settings)
+// (Artists, Composers, Albums, Songs, or Playlists lists — not the root menu or settings)
 func (app *MiyooPod) isSearchableMenu() bool {
 	if len(app.MenuStack) < 2 {
 		// Don't search the root menu
@@ -37,7 +37,7 @@ func (app *MiyooPod) isSearchableMenu() bool {
 		return false
 	}
 	first := current.Items[0]
-	return first.Track != nil || first.Album != nil || first.Artist != nil
+	return first.Track != nil || first.Album != nil || first.Artist != nil || first.Composer != nil
 }
 
 // toggleSearch activates or deactivates the search panel

@@ -86,7 +86,6 @@ func (app *MiyooPod) drawQueueScreen() {
 		}
 
 		// Track number and title
-		dc.SetFontFace(app.FontMenu)
 		if isSelected {
 			dc.SetHexColor(app.CurrentTheme.SelTxt)
 		} else {
@@ -101,17 +100,18 @@ func (app *MiyooPod) drawQueueScreen() {
 		label := fmt.Sprintf("%s%d. %s", prefix, displayIdx+1, track.Title)
 		maxWidth := float64(SCREEN_WIDTH - MENU_LEFT_PAD - MENU_RIGHT_PAD - 40)
 		displayLabel := app.truncateText(label, maxWidth, app.FontMenu)
+		dc.SetFontFace(app.fontForText(label, app.FontMenu))
 		textY := float64(y) + float64(MENU_ITEM_HEIGHT)/2
 		dc.DrawStringAnchored(displayLabel, float64(MENU_LEFT_PAD), textY, 0, 0.5)
 
 		// Artist name (right side)
-		dc.SetFontFace(app.FontSmall)
 		if isSelected {
 			dc.SetHexColor(app.CurrentTheme.SelTxt)
 		} else {
 			dc.SetHexColor(app.CurrentTheme.Dim)
 		}
 		artistText := app.truncateText(track.Artist, 150, app.FontSmall)
+		dc.SetFontFace(app.fontForText(track.Artist, app.FontSmall))
 		dc.DrawStringAnchored(artistText, float64(SCREEN_WIDTH-MENU_RIGHT_PAD), textY, 1, 0.5)
 
 		y += MENU_ITEM_HEIGHT

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"sort"
+	"strings"
 
 	"github.com/fogleman/gg"
 )
@@ -48,6 +49,22 @@ func (app *MiyooPod) buildRootMenu() *MenuScreen {
 			Label:      "Artists",
 			HasSubmenu: true,
 			Submenu:    artistMenu,
+		})
+	}
+
+	// Composers
+	if len(app.Library.Composers) > 0 {
+		composerMenu := &MenuScreen{
+			Title:  "Composers",
+			Parent: root,
+			Builder: func() []*MenuItem {
+				return app.buildComposerMenuItems(root)
+			},
+		}
+		items = append(items, &MenuItem{
+			Label:      "Composers",
+			HasSubmenu: true,
+			Submenu:    composerMenu,
 		})
 	}
 
@@ -196,6 +213,38 @@ func (app *MiyooPod) buildArtistMenuItems(root *MenuScreen) []*MenuItem {
 			HasSubmenu: true,
 			Submenu:    albumMenu,
 			Artist:     a, // Store artist reference for Y-key action
+		})
+	}
+	return items
+}
+
+func (app *MiyooPod) buildComposerMenuItems(root *MenuScreen) []*MenuItem {
+	items := make([]*MenuItem, 0, len(app.Library.Composers))
+	for _, composer := range app.Library.Composers {
+		c := composer // capture
+		trackMenu := &MenuScreen{
+			Title:  c.Name,
+			Parent: root,
+			Builder: func() []*MenuItem {
+				tracks := make([]*Track, 0)
+				for _, album := range c.Albums {
+					for _, t := range album.Tracks {
+						if t.Composer == c.Name {
+							tracks = append(tracks, t)
+						}
+					}
+				}
+				sort.Slice(tracks, func(i, j int) bool {
+					return strings.ToLower(tracks[i].Title) < strings.ToLower(tracks[j].Title)
+				})
+				return app.buildTrackMenuItems(tracks)
+			},
+		}
+		items = append(items, &MenuItem{
+			Label:      c.Name,
+			HasSubmenu: true,
+			Submenu:    trackMenu,
+			Composer:   c,
 		})
 	}
 	return items
@@ -478,7 +527,7 @@ func (app *MiyooPod) handleMenuKey(key Key) {
 			return
 		}
 	case Y:
-		// Add to queue: track, album, or all artist tracks
+		// Add to queue: track, album, artist, or composer tracks
 		if len(current.Items) == 0 {
 			return
 		}
@@ -495,6 +544,14 @@ func (app *MiyooPod) handleMenuKey(key Key) {
 			for _, album := range item.Artist.Albums {
 				for _, track := range album.Tracks {
 					app.addToQueue(track)
+				}
+			}
+		} else if item.Composer != nil {
+			for _, album := range item.Composer.Albums {
+				for _, track := range album.Tracks {
+					if track.Composer == item.Composer.Name {
+						app.addToQueue(track)
+					}
 				}
 			}
 		}
@@ -627,7 +684,6 @@ func (app *MiyooPod) drawMenuWithSearchPanel(current *MenuScreen) {
 				dc.Fill()
 			}
 
-			dc.SetFontFace(app.FontMenu)
 			if selected {
 				dc.SetHexColor(app.CurrentTheme.SelTxt)
 			} else {
@@ -636,6 +692,7 @@ func (app *MiyooPod) drawMenuWithSearchPanel(current *MenuScreen) {
 
 			maxWidth := float64(listWidth - MENU_LEFT_PAD - 20)
 			displayText := app.truncateText(item.Label, maxWidth, app.FontMenu)
+			dc.SetFontFace(app.fontForText(item.Label, app.FontMenu))
 			textY := float64(y) + float64(MENU_ITEM_HEIGHT)/2
 			dc.DrawStringAnchored(displayText, float64(MENU_LEFT_PAD), textY, 0, 0.5)
 
@@ -742,7 +799,6 @@ func (app *MiyooPod) drawAlbumListWithPreview(current *MenuScreen) {
 			dc.Fill()
 		}
 
-		dc.SetFontFace(app.FontMenu)
 		if selected {
 			dc.SetHexColor(app.CurrentTheme.SelTxt)
 		} else {
@@ -752,6 +808,7 @@ func (app *MiyooPod) drawAlbumListWithPreview(current *MenuScreen) {
 		// Truncate text to fit left panel
 		maxWidth := float64(listWidth - 30)
 		displayText := app.truncateText(item.Label, maxWidth, app.FontMenu)
+		dc.SetFontFace(app.fontForText(item.Label, app.FontMenu))
 		dc.DrawString(displayText, 15, float64(y+MENU_ITEM_HEIGHT/2+6))
 
 		if item.HasSubmenu {
@@ -815,16 +872,16 @@ func (app *MiyooPod) drawAlbumPreview(album *Album, x, y, width int) {
 	yPos += artSize + 30
 
 	// Album name
-	dc.SetFontFace(app.FontMenu)
 	dc.SetHexColor(app.CurrentTheme.ItemTxt)
 	albumText := app.truncateText(album.Name, float64(width-20), app.FontMenu)
+	dc.SetFontFace(app.fontForText(album.Name, app.FontMenu))
 	dc.DrawStringAnchored(albumText, float64(centerX), float64(yPos), 0.5, 0)
 	yPos += 25
 
 	// Artist
-	dc.SetFontFace(app.FontArtist)
 	dc.SetHexColor(app.CurrentTheme.Dim)
 	artistText := app.truncateText(album.Artist, float64(width-20), app.FontArtist)
+	dc.SetFontFace(app.fontForText(album.Artist, app.FontArtist))
 	dc.DrawStringAnchored(artistText, float64(centerX), float64(yPos), 0.5, 0)
 	yPos += 30
 

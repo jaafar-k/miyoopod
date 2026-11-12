@@ -147,6 +147,7 @@ func (app *MiyooPod) buildLyricsCache() {
 	app.LyricsPlainLines = nil
 
 	maxWidth := float64(SCREEN_WIDTH - lyricsPadX*2 - 10)
+	face := app.fontForText(track.Lyrics, app.FontMenu)
 
 	lrcLines := parseLRC(track.Lyrics)
 	if lrcLines != nil {
@@ -157,13 +158,15 @@ func (app *MiyooPod) buildLyricsCache() {
 				display = append(display, lyricsDisplayLine{"", i})
 				continue
 			}
-			for _, wl := range wrapLyrics(l.text, maxWidth, app.FontMenu, app.measureString) {
+			shaped := shapeForDisplay(l.text)
+			lineFace := app.fontForText(l.text, app.FontMenu)
+			for _, wl := range wrapLyrics(shaped, maxWidth, lineFace, app.measureString) {
 				display = append(display, lyricsDisplayLine{wl, i})
 			}
 		}
 		app.LyricsCachedDisplay = display
 	} else {
-		app.LyricsPlainLines = wrapLyrics(track.Lyrics, maxWidth, app.FontMenu, app.measureString)
+		app.LyricsPlainLines = wrapLyrics(shapeForDisplay(track.Lyrics), maxWidth, face, app.measureString)
 	}
 }
 
@@ -244,7 +247,11 @@ func (app *MiyooPod) drawLRCLines() {
 		app.LyricsScrollOffset = 0
 	}
 
-	dc.SetFontFace(app.FontMenu)
+	lyricsFace := app.FontMenu
+	if track := app.Playing.Track; track != nil {
+		lyricsFace = app.fontForText(track.Lyrics, app.FontMenu)
+	}
+	dc.SetFontFace(lyricsFace)
 	end := app.LyricsScrollOffset + lyricsVisLines
 	if end > len(display) {
 		end = len(display)
@@ -281,7 +288,11 @@ func (app *MiyooPod) drawPlainLines() {
 		app.LyricsScrollOffset = 0
 	}
 
-	dc.SetFontFace(app.FontMenu)
+	lyricsFace := app.FontMenu
+	if track := app.Playing.Track; track != nil {
+		lyricsFace = app.fontForText(track.Lyrics, app.FontMenu)
+	}
+	dc.SetFontFace(lyricsFace)
 	end := app.LyricsScrollOffset + lyricsVisLines
 	if end > len(lines) {
 		end = len(lines)

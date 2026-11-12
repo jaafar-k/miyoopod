@@ -46,9 +46,10 @@ func (app *MiyooPod) runLibraryScan(onComplete func()) {
 	logMsg("INFO: Scanning music library...")
 
 	app.Library = &Library{
-		TracksByPath:  make(map[string]*Track),
-		AlbumsByKey:   make(map[string]*Album),
-		ArtistsByName: make(map[string]*Artist),
+		TracksByPath:    make(map[string]*Track),
+		AlbumsByKey:     make(map[string]*Album),
+		ArtistsByName:   make(map[string]*Artist),
+		ComposersByName: make(map[string]*Composer),
 	}
 
 	fileCount := 0
@@ -105,6 +106,9 @@ func (app *MiyooPod) runLibraryScan(onComplete func()) {
 	sort.Slice(app.Library.Artists, func(i, j int) bool {
 		return strings.ToLower(app.Library.Artists[i].Name) < strings.ToLower(app.Library.Artists[j].Name)
 	})
+	sort.Slice(app.Library.Composers, func(i, j int) bool {
+		return strings.ToLower(app.Library.Composers[i].Name) < strings.ToLower(app.Library.Composers[j].Name)
+	})
 	for _, album := range app.Library.Albums {
 		sort.Slice(album.Tracks, func(i, j int) bool {
 			if album.Tracks[i].DiscNum != album.Tracks[j].DiscNum {
@@ -116,6 +120,11 @@ func (app *MiyooPod) runLibraryScan(onComplete func()) {
 	for _, artist := range app.Library.Artists {
 		sort.Slice(artist.Albums, func(i, j int) bool {
 			return strings.ToLower(artist.Albums[i].Name) < strings.ToLower(artist.Albums[j].Name)
+		})
+	}
+	for _, composer := range app.Library.Composers {
+		sort.Slice(composer.Albums, func(i, j int) bool {
+			return strings.ToLower(composer.Albums[i].Name) < strings.ToLower(composer.Albums[j].Name)
 		})
 	}
 
@@ -138,11 +147,11 @@ func (app *MiyooPod) runLibraryScan(onComplete func()) {
 
 	elapsed := time.Since(start)
 	app.LibScanElapsed = elapsed.Truncate(time.Second).String()
-	app.LibScanStatus = fmt.Sprintf("%d tracks, %d albums, %d artists",
-		len(app.Library.Tracks), len(app.Library.Albums), len(app.Library.Artists))
+	app.LibScanStatus = fmt.Sprintf("%d tracks, %d albums, %d artists, %d composers",
+		len(app.Library.Tracks), len(app.Library.Albums), len(app.Library.Artists), len(app.Library.Composers))
 
-	logMsg(fmt.Sprintf("INFO: Library scan complete: %d tracks, %d albums, %d artists, %d playlists",
-		len(app.Library.Tracks), len(app.Library.Albums), len(app.Library.Artists), len(app.Library.Playlists)))
+	logMsg(fmt.Sprintf("INFO: Library scan complete: %d tracks, %d albums, %d artists, %d composers, %d playlists",
+		len(app.Library.Tracks), len(app.Library.Albums), len(app.Library.Artists), len(app.Library.Composers), len(app.Library.Playlists)))
 
 	app.LibScanRunning = false
 
@@ -153,6 +162,21 @@ func (app *MiyooPod) runLibraryScan(onComplete func()) {
 
 	app.LibScanDone = true
 	app.requestRedraw()
+}
+
+// extractComposer returns an explicit composer tag only.
+// Vorbis Composer() falls back to performer/artist when COMPOSER is missing.
+func extractComposer(m tag.Metadata) string {
+	composer := strings.TrimSpace(m.Composer())
+	if composer == "" {
+		return ""
+	}
+	if m.Format() == tag.VORBIS {
+		if _, ok := m.Raw()["composer"]; !ok {
+			return ""
+		}
+	}
+	return composer
 }
 
 // scanTrack reads metadata from a single audio file
@@ -174,6 +198,7 @@ func (app *MiyooPod) scanTrack(path string) {
 		track.Artist = m.Artist()
 		track.Album = m.Album()
 		track.AlbumArtist = m.AlbumArtist()
+		track.Composer = extractComposer(m)
 		track.TrackNum, track.TrackTotal = m.Track()
 		track.DiscNum, _ = m.Disc()
 		track.Year = m.Year()
@@ -254,6 +279,26 @@ func (app *MiyooPod) scanTrack(path string) {
 	}
 	if !found {
 		artist.Albums = append(artist.Albums, album)
+	}
+
+	// Index composer when tag is present (skip empty)
+	if track.Composer != "" {
+		composer, exists := app.Library.ComposersByName[track.Composer]
+		if !exists {
+			composer = &Composer{Name: track.Composer}
+			app.Library.ComposersByName[track.Composer] = composer
+			app.Library.Composers = append(app.Library.Composers, composer)
+		}
+		composerFound := false
+		for _, a := range composer.Albums {
+			if a == album {
+				composerFound = true
+				break
+			}
+		}
+		if !composerFound {
+			composer.Albums = append(composer.Albums, album)
+		}
 	}
 }
 
@@ -534,12 +579,9 @@ func (app *MiyooPod) drawLibraryScanScreen() {
 		dc.DrawRectangle(0, float64(y), SCREEN_WIDTH, MENU_ITEM_HEIGHT)
 		dc.Fill()
 
-		dc.SetFontFace(app.FontSmall)
 		dc.SetHexColor(app.CurrentTheme.SelTxt)
-		displayPath := app.LibScanFolder
-		if len(displayPath) > 60 {
-			displayPath = "..." + displayPath[len(displayPath)-57:]
-		}
+		displayPath := app.truncateText(app.LibScanFolder, float64(SCREEN_WIDTH-MENU_LEFT_PAD-MENU_RIGHT_PAD), app.FontSmall)
+		dc.SetFontFace(app.fontForText(app.LibScanFolder, app.FontSmall))
 		textY = float64(y) + float64(MENU_ITEM_HEIGHT)/2
 		dc.DrawStringAnchored(displayPath, float64(MENU_LEFT_PAD), textY, 0, 0.5)
 		y += MENU_ITEM_HEIGHT
@@ -603,6 +645,17 @@ func (app *MiyooPod) drawLibraryScanResults() {
 		dc.SetHexColor(app.CurrentTheme.Accent)
 		dc.DrawStringAnchored(fmt.Sprintf("%d", len(app.Library.Artists)), float64(SCREEN_WIDTH-MENU_RIGHT_PAD), textY, 1, 0.5)
 		y += MENU_ITEM_HEIGHT
+
+		// Composers
+		if len(app.Library.Composers) > 0 {
+			dc.SetFontFace(app.FontMenu)
+			dc.SetHexColor(app.CurrentTheme.ItemTxt)
+			textY = float64(y) + float64(MENU_ITEM_HEIGHT)/2
+			dc.DrawStringAnchored("Composers", float64(MENU_LEFT_PAD), textY, 0, 0.5)
+			dc.SetHexColor(app.CurrentTheme.Accent)
+			dc.DrawStringAnchored(fmt.Sprintf("%d", len(app.Library.Composers)), float64(SCREEN_WIDTH-MENU_RIGHT_PAD), textY, 1, 0.5)
+			y += MENU_ITEM_HEIGHT
+		}
 
 		// Playlists
 		if len(app.Library.Playlists) > 0 {
@@ -682,9 +735,10 @@ func (app *MiyooPod) loadLibraryJSON() error {
 	}
 
 	lib := &Library{
-		TracksByPath:  make(map[string]*Track),
-		AlbumsByKey:   make(map[string]*Album),
-		ArtistsByName: make(map[string]*Artist),
+		TracksByPath:    make(map[string]*Track),
+		AlbumsByKey:     make(map[string]*Album),
+		ArtistsByName:   make(map[string]*Artist),
+		ComposersByName: make(map[string]*Composer),
 	}
 
 	err = json.Unmarshal(data, lib)
@@ -717,13 +771,21 @@ func (app *MiyooPod) loadLibraryJSON() error {
 		lib.ArtistsByName[artist.Name] = artist
 	}
 
-	// Rebuild relationships between tracks, albums, and artists
+	for _, composer := range lib.Composers {
+		lib.ComposersByName[composer.Name] = composer
+	}
+
+	// Rebuild relationships between tracks, albums, artists, and composers
 	for _, album := range lib.Albums {
 		album.Tracks = nil // Clear tracks
 	}
 
 	for _, artist := range lib.Artists {
 		artist.Albums = nil // Clear albums
+	}
+
+	for _, composer := range lib.Composers {
+		composer.Albums = nil // Clear albums
 	}
 
 	// Rebuild track-album relationships and extract album art
@@ -760,6 +822,46 @@ func (app *MiyooPod) loadLibraryJSON() error {
 		}
 	}
 
+	// Rebuild composer-album relationships from track composer tags
+	for _, track := range lib.Tracks {
+		if track.Composer == "" {
+			continue
+		}
+		composer, exists := lib.ComposersByName[track.Composer]
+		if !exists {
+			composer = &Composer{Name: track.Composer}
+			lib.ComposersByName[track.Composer] = composer
+			lib.Composers = append(lib.Composers, composer)
+		}
+		albumArtist := track.AlbumArtist
+		if albumArtist == "" {
+			albumArtist = track.Artist
+		}
+		albumKey := albumArtist + "|" + track.Album
+		album, albumExists := lib.AlbumsByKey[albumKey]
+		if !albumExists {
+			continue
+		}
+		found := false
+		for _, a := range composer.Albums {
+			if a == album {
+				found = true
+				break
+			}
+		}
+		if !found {
+			composer.Albums = append(composer.Albums, album)
+		}
+	}
+	sort.Slice(lib.Composers, func(i, j int) bool {
+		return strings.ToLower(lib.Composers[i].Name) < strings.ToLower(lib.Composers[j].Name)
+	})
+	for _, composer := range lib.Composers {
+		sort.Slice(composer.Albums, func(i, j int) bool {
+			return strings.ToLower(composer.Albums[i].Name) < strings.ToLower(composer.Albums[j].Name)
+		})
+	}
+
 	// Parse playlists (they're just references, need to be re-read)
 	for _, pl := range lib.Playlists {
 		app.parsePlaylist(pl)
@@ -768,8 +870,8 @@ func (app *MiyooPod) loadLibraryJSON() error {
 	// Decode album art
 	app.decodeAlbumArt()
 
-	logMsg(fmt.Sprintf("INFO: Library loaded from JSON: %d tracks, %d albums, %d artists, %d playlists in %v",
-		len(lib.Tracks), len(lib.Albums), len(lib.Artists), len(lib.Playlists), time.Since(start)))
+	logMsg(fmt.Sprintf("INFO: Library loaded from JSON: %d tracks, %d albums, %d artists, %d composers, %d playlists in %v",
+		len(lib.Tracks), len(lib.Albums), len(lib.Artists), len(lib.Composers), len(lib.Playlists), time.Since(start)))
 
 	return nil
 }

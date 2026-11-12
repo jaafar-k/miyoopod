@@ -68,6 +68,20 @@ func (app *MiyooPod) faceID(face font.Face) uint8 {
 		return 6
 	case app.FontSmall:
 		return 7
+	case app.FontHeaderAR:
+		return 8
+	case app.FontMenuAR:
+		return 9
+	case app.FontTitleAR:
+		return 10
+	case app.FontArtistAR:
+		return 11
+	case app.FontAlbumAR:
+		return 12
+	case app.FontTimeAR:
+		return 13
+	case app.FontSmallAR:
+		return 14
 	default:
 		return 0
 	}

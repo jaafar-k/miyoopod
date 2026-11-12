@@ -2,12 +2,10 @@
 
 MP3 player for the Miyoo Mini Plus, Mini v4, and Mini Flip running OnionOS. Inspired by the classic iPod interface.
 
-![MiyooPod](screenshots/hero.png)
-
 ## Features
 
 - iPod-inspired user interface with multiple themes
-- Browse by Artists, Albums, and Songs
+- Browse by Artists, Composers, Albums, and Songs
 - Search/filter lists with on-screen A-Z keyboard
 - Album art display with automatic fetching from MusicBrainz
 - Shuffle and repeat modes
@@ -72,7 +70,7 @@ For albums without embedded artwork, MiyooPod can automatically fetch album cove
 ## Settings
 
 - **Themes** - Choose from 17 visual themes (Classic iPod, Dark, Dark Blue, Light, Nord, Solarized Dark, Matrix Green, Retro Amber, Purple Haze, Cyberpunk, Coffee, Ocean, Forest, Sunset, Neon, Midnight, Gruvbox, Candy)
-- **Screen Lock** - Press the POWER button to lock/unlock the screen, preventing accidental presses during playback. Hold POWER for a few seconds to quit the app
+- **Screen Lock** - Press the POWER button to lock/unlock the screen, preventing accidental presses during playback. Press MENU + START to quit the app
 - **Auto Screen Lock** - Automatically lock after a period of inactivity (1/3/5/10 min, or disabled)
 - **Fetch Album Art** - Automatically download missing album artwork from MusicBrainz
 - **Check for Updates** - Manually check for and install OTA updates
@@ -160,7 +158,7 @@ The build process uses CGO to compile Go source with C bindings and bundles all 
 ### Version 0.0.7
 
 **New Features**
-- Single-button screen lock: press POWER to lock/unlock, hold POWER to quit the app
+- Single-button screen lock: press POWER to lock/unlock; MENU + START to quit the app
 - Bitrate and sample rate shown on the Now Playing format badge
 - Released under the MIT License, with third-party license notices included
 
@@ -180,7 +178,7 @@ The build process uses CGO to compile Go source with C bindings and bundles all 
 - Fixed brightness flash when unlocking
 - Fixed shuffle so selecting a song plays that exact song
 - Fixed the About screen reopening immediately after closing it
-- Fixed the marquee and progress bar drawing over the lock and power-exit overlays
+- Fixed the marquee and progress bar drawing over the lock overlay
 - Fixed race conditions that could corrupt the framebuffer during background work
 
 ### Version 0.0.6
@@ -188,11 +186,11 @@ The build process uses CGO to compile Go source with C bindings and bundles all 
 - Lyrics support: embedded lyrics (ID3 USLT, Vorbis comments) displayed with word-wrap and scroll
 - LRC timed lyrics: synced highlighting of the current line with auto-scroll and manual scroll override
 - Hold ↑/↓ to scroll lists continuously without repeated presses
-- SELECT + START to quit the app
+- MENU + START to quit the app
 
 ### Version 0.0.5
 - Over-the-air updates with download progress, checksum verification, and automatic rollback on failure
-- Search: filter Artists, Albums, and Songs with an on-screen A-Z keyboard (press SELECT on any list)
+- Search: filter Artists, Composers, Albums, and Songs with an on-screen A-Z keyboard (press SELECT on any list)
 - Seek/fast-forward/rewind: hold L or R on the Now Playing screen with accelerating speed
 - Session persistence: queue, playback position, shuffle/repeat state, and current track restored across launches
 - Header marquee: now-playing track info scrolls in the header bar when browsing menus

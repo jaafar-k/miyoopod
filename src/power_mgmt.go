@@ -46,38 +46,16 @@ func (app *MiyooPod) startInactivityMonitor() {
 }
 
 // exitAppGracefully saves state, restores hardware, and quits cleanly.
-// Called after 2-second power button hold.
 func (app *MiyooPod) exitAppGracefully() {
-	logMsg("INFO: Power button held for 5s — exiting gracefully")
+	logMsg("INFO: MENU + START — exiting gracefully")
 
 	app.savePlaybackState()
 	restoreBrightness()
 	app.restoreCPUGovernor()
 
-	TrackAction("power_exit", nil)
+	TrackAction("menu_start_exit", nil)
 
 	app.Running = false
-}
-
-// showPowerExitWarning brightens the screen if dimmed and shows the exit warning overlay.
-func (app *MiyooPod) showPowerExitWarning() {
-	if app.Locked {
-		restoreBrightness()
-	}
-	app.PowerExitWarning = true
-	app.requestRedraw()
-}
-
-// hidePowerExitWarning removes the exit warning overlay and re-dims the screen if locked.
-func (app *MiyooPod) hidePowerExitWarning() {
-	if !app.PowerExitWarning {
-		return
-	}
-	app.PowerExitWarning = false
-	if app.Locked {
-		app.dimScreen()
-	}
-	app.requestRedraw()
 }
 
 // resetInactivityTimer resets the inactivity timer (called on user interaction)

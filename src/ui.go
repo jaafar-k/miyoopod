@@ -51,9 +51,9 @@ func (app *MiyooPod) drawHeader(title string) {
 	}
 
 	// Draw title (left-aligned, truncated to its zone)
-	dc.SetFontFace(app.FontHeader)
 	dc.SetHexColor(app.CurrentTheme.HeaderTxt)
 	displayTitle := app.truncateText(title, titleMaxW, app.FontHeader)
+	dc.SetFontFace(app.fontForText(title, app.FontHeader))
 	dc.DrawStringAnchored(displayTitle, titleX, HEADER_HEIGHT/2, 0, 0.5)
 
 	// Right side: play state icon + now playing track info (marquee)
@@ -78,7 +78,9 @@ func (app *MiyooPod) drawHeader(title string) {
 
 		// Now playing text — marquee if it overflows
 		info := app.Playing.Track.Artist + " - " + app.Playing.Track.Title
-		dc.SetFontFace(app.FontSmall)
+		infoFace := app.fontForText(info, app.FontSmall)
+		infoDraw := shapeForDisplay(info)
+		dc.SetFontFace(infoFace)
 		infoFullW := app.measureTextCached(info, app.FontSmall)
 
 		if infoFullW <= textW {
@@ -88,7 +90,7 @@ func (app *MiyooPod) drawHeader(title string) {
 				app.MarqueeBuf = nil
 			}
 			dc.SetHexColor(app.CurrentTheme.HeaderTxt)
-			dc.DrawStringAnchored(info, textX, HEADER_HEIGHT/2, 0, 0.5)
+			dc.DrawStringAnchored(infoDraw, textX, HEADER_HEIGHT/2, 0, 0.5)
 		} else {
 			// Pre-render the full marquee strip once when text changes
 			if info != app.MarqueeText {
@@ -98,7 +100,7 @@ func (app *MiyooPod) drawHeader(title string) {
 				app.MarqueePauseUntil = time.Now().Add(1500 * time.Millisecond)
 
 				spacer := "       "
-				dc.SetFontFace(app.FontSmall)
+				dc.SetFontFace(infoFace)
 				spacerW := app.measureTextCached(spacer, app.FontSmall)
 				stripW := int(infoFullW + spacerW)
 				stripH := int(HEADER_HEIGHT)
@@ -109,9 +111,9 @@ func (app *MiyooPod) drawHeader(title string) {
 
 				// Render full strip (white on transparent) — done once per track
 				offDC := gg.NewContext(stripW, stripH)
-				offDC.SetFontFace(app.FontSmall)
+				offDC.SetFontFace(infoFace)
 				offDC.SetRGBA(1, 1, 1, 1)
-				offDC.DrawStringAnchored(info+spacer, 0, float64(stripH)/2, 0, 0.5)
+				offDC.DrawStringAnchored(infoDraw+spacer, 0, float64(stripH)/2, 0, 0.5)
 
 				offImg := offDC.Image()
 				if rgba, ok := offImg.(*image.RGBA); ok {
@@ -166,7 +168,7 @@ func (app *MiyooPod) advanceMarquee() {
 // Called from the main loop at ~30Hz. Only updates when marquee is actively scrolling.
 func (app *MiyooPod) pollMarquee() {
 	screenHasMarquee := app.CurrentScreen == ScreenMenu || app.CurrentScreen == ScreenQueue
-	if app.MarqueeBuf == nil || !screenHasMarquee || app.MarqueeDstW <= 0 || app.Locked || app.OverlayVisible || app.PowerExitWarning || app.LastKey != NONE {
+	if app.MarqueeBuf == nil || !screenHasMarquee || app.MarqueeDstW <= 0 || app.Locked || app.OverlayVisible || app.LastKey != NONE {
 		return
 	}
 
@@ -192,7 +194,6 @@ func (app *MiyooPod) drawMenuItem(y int, label string, selected bool, hasSubmenu
 	}
 
 	// Item text
-	dc.SetFontFace(app.FontMenu)
 	if selected {
 		dc.SetHexColor(app.CurrentTheme.SelTxt)
 	} else {
@@ -202,6 +203,7 @@ func (app *MiyooPod) drawMenuItem(y int, label string, selected bool, hasSubmenu
 	// Truncate text if needed
 	maxWidth := float64(SCREEN_WIDTH - MENU_LEFT_PAD - MENU_RIGHT_PAD - 15)
 	displayLabel := app.truncateText(label, maxWidth, app.FontMenu)
+	dc.SetFontFace(app.fontForText(label, app.FontMenu))
 
 	textY := float64(y) + float64(MENU_ITEM_HEIGHT)/2
 	dc.DrawStringAnchored(displayLabel, float64(MENU_LEFT_PAD), textY, 0, 0.5)
@@ -490,18 +492,19 @@ func (app *MiyooPod) drawRepeatOneIcon(x, y, size int) {
 	dc.Stroke()
 }
 
-// measureTextCached measures text width with caching to avoid expensive font operations
+// measureTextCached measures text width with caching to avoid expensive font operations.
+// Arabic is shaped to presentation forms before measuring.
 func (app *MiyooPod) measureTextCached(text string, face font.Face) float64 {
-	// Cache key uses text + font ID (zero-allocation for cache hits)
-	cacheKey := text + "|" + app.fontID(face)
+	display := shapeForDisplay(text)
+	useFace := app.fontForText(text, face)
+	cacheKey := display + "|" + app.fontID(useFace)
 
 	if width, ok := app.TextMeasureCache[cacheKey]; ok {
 		return width
 	}
 
-	// Must set font face before measuring
-	app.DC.SetFontFace(face)
-	width, _ := app.DC.MeasureString(text)
+	app.DC.SetFontFace(useFace)
+	width, _ := app.DC.MeasureString(display)
 	app.TextMeasureCache[cacheKey] = width
 	return width
 }
@@ -523,22 +526,39 @@ func (app *MiyooPod) fontID(face font.Face) string {
 		return "I"
 	case app.FontSmall:
 		return "S"
+	case app.FontHeaderAR:
+		return "Ha"
+	case app.FontMenuAR:
+		return "Ma"
+	case app.FontTitleAR:
+		return "Ta"
+	case app.FontArtistAR:
+		return "Aa"
+	case app.FontAlbumAR:
+		return "Ba"
+	case app.FontTimeAR:
+		return "Ia"
+	case app.FontSmallAR:
+		return "Sa"
 	default:
 		return "X"
 	}
 }
 
-// truncateText truncates text with "..." if it exceeds maxWidth
-// Optimized with caching and binary search instead of O(n²) linear scan
-// Requires font face to be passed for caching
+// truncateText truncates text with "..." if it exceeds maxWidth.
+// Shapes Arabic first, then binary-searches on rune counts (never mid-code-unit).
 func (app *MiyooPod) truncateText(text string, maxWidth float64, face font.Face) string {
+	display := shapeForDisplay(text)
+	useFace := app.fontForText(text, face)
+
 	w := app.measureTextCached(text, face)
 	if w <= maxWidth {
-		return text
+		return display
 	}
 
-	// Binary search for optimal truncation point
-	left, right := 0, len(text)
+	rtl := isRTLDominant(text)
+	runes := []rune(display)
+	left, right := 0, len(runes)
 	bestFit := 0
 
 	for left <= right {
@@ -546,11 +566,18 @@ func (app *MiyooPod) truncateText(text string, maxWidth float64, face font.Face)
 		if mid == 0 {
 			return "..."
 		}
+		var candidate string
+		if rtl {
+			candidate = "..." + string(runes[len(runes)-mid:])
+		} else {
+			candidate = string(runes[:mid]) + "..."
+		}
+		app.DC.SetFontFace(useFace)
+		cw, _ := app.DC.MeasureString(candidate)
+		cacheKey := candidate + "|" + app.fontID(useFace)
+		app.TextMeasureCache[cacheKey] = cw
 
-		truncated := text[:mid] + "..."
-		w := app.measureTextCached(truncated, face)
-
-		if w <= maxWidth {
+		if cw <= maxWidth {
 			bestFit = mid
 			left = mid + 1
 		} else {
@@ -561,8 +588,10 @@ func (app *MiyooPod) truncateText(text string, maxWidth float64, face font.Face)
 	if bestFit == 0 {
 		return "..."
 	}
-
-	return text[:bestFit] + "..."
+	if rtl {
+		return "..." + string(runes[len(runes)-bestFit:])
+	}
+	return string(runes[:bestFit]) + "..."
 }
 
 // formatTime converts seconds to "M:SS" format (zero-allocation for common values)
@@ -590,16 +619,11 @@ func formatTime(seconds float64) string {
 // drawCenteredText draws text centered horizontally at the given Y position
 func (app *MiyooPod) drawCenteredText(text string, y float64, face font.Face, color string) {
 	dc := app.DC
-	dc.SetFontFace(face)
 	dc.SetHexColor(color)
 
 	maxWidth := float64(SCREEN_WIDTH - 40)
-	displayText := text
-	w := app.measureTextCached(text, face)
-	if w > maxWidth {
-		displayText = app.truncateText(text, maxWidth, face)
-	}
-
+	displayText := app.truncateText(text, maxWidth, face)
+	dc.SetFontFace(app.fontForText(text, face))
 	dc.DrawStringAnchored(displayText, SCREEN_WIDTH/2, y, 0.5, 0.5)
 }
 
@@ -685,7 +709,7 @@ func (app *MiyooPod) drawStatusBar() {
 				current := app.MenuStack[len(app.MenuStack)-1]
 				if len(current.Items) > 0 {
 					firstItem := current.Items[0]
-					if firstItem.Track != nil || firstItem.Album != nil || firstItem.Artist != nil {
+					if firstItem.Track != nil || firstItem.Album != nil || firstItem.Artist != nil || firstItem.Composer != nil {
 						if app.Playing == nil || app.Playing.State == StateStopped {
 							app.drawButtonLegend(360, centerY, "Y", "Add to Q")
 						}
@@ -940,28 +964,7 @@ func (app *MiyooPod) drawLockOverlay() {
 
 	// Exit hint
 	dc.SetHexColor("#999999")
-	dc.DrawStringAnchored("Hold POWER 5s to quit", centerX, centerY+40, 0.5, 0.5)
-}
-
-// drawPowerExitWarning draws an overlay when the user is holding power button
-// past 1 second, warning them to keep holding to exit.
-func (app *MiyooPod) drawPowerExitWarning() {
-	dc := app.DC
-
-	dc.SetRGBA(0, 0, 0, 0.5)
-	dc.DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
-	dc.Fill()
-
-	centerX := SCREEN_WIDTH / 2.0
-	centerY := SCREEN_HEIGHT / 2.0
-
-	dc.SetFontFace(app.FontTitle)
-	dc.SetHexColor("#FF4444")
-	dc.DrawStringAnchored("Keep holding to exit MiyooPod", centerX, centerY-10, 0.5, 0.5)
-
-	dc.SetFontFace(app.FontSmall)
-	dc.SetHexColor("#CCCCCC")
-	dc.DrawStringAnchored("Release to cancel", centerX, centerY+20, 0.5, 0.5)
+	dc.DrawStringAnchored("MENU + START to quit", centerX, centerY+40, 0.5, 0.5)
 }
 
 // getBrightness reads the current PWM duty_cycle (brightness level)

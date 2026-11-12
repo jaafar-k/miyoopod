@@ -452,6 +452,7 @@ type Track struct {
 	Artist      string  `json:"artist"`
 	Album       string  `json:"album"`
 	AlbumArtist string  `json:"album_artist"`
+	Composer    string  `json:"composer,omitempty"`
 	TrackNum    int     `json:"track_num"`
 	TrackTotal  int     `json:"track_total"`
 	DiscNum     int     `json:"disc_num"`
@@ -479,6 +480,11 @@ type Artist struct {
 	Albums []*Album `json:"-"` // Reconstructed from library albums
 }
 
+type Composer struct {
+	Name   string   `json:"name"`
+	Albums []*Album `json:"-"` // Reconstructed from tracks with this composer
+}
+
 type Playlist struct {
 	Name   string   `json:"name"`
 	Path   string   `json:"path"`
@@ -486,14 +492,16 @@ type Playlist struct {
 }
 
 type Library struct {
-	Tracks    []*Track    `json:"tracks"`
-	Albums    []*Album    `json:"albums"`
-	Artists   []*Artist   `json:"artists"`
-	Playlists []*Playlist `json:"playlists"`
+	Tracks    []*Track     `json:"tracks"`
+	Albums    []*Album     `json:"albums"`
+	Artists   []*Artist    `json:"artists"`
+	Composers []*Composer  `json:"composers"`
+	Playlists []*Playlist  `json:"playlists"`
 
-	TracksByPath  map[string]*Track  `json:"-"` // Reconstructed on load
-	AlbumsByKey   map[string]*Album  `json:"-"` // Reconstructed on load
-	ArtistsByName map[string]*Artist `json:"-"` // Reconstructed on load
+	TracksByPath    map[string]*Track     `json:"-"` // Reconstructed on load
+	AlbumsByKey     map[string]*Album     `json:"-"` // Reconstructed on load
+	ArtistsByName   map[string]*Artist    `json:"-"` // Reconstructed on load
+	ComposersByName map[string]*Composer  `json:"-"` // Reconstructed on load
 }
 
 // --- Playback queue ---
@@ -544,8 +552,9 @@ type MenuItem struct {
 	Action     func()
 	Submenu    *MenuScreen
 	Track      *Track
-	Album      *Album  // For album preview display
-	Artist     *Artist // For artist track queuing
+	Album      *Album     // For album preview display
+	Artist     *Artist    // For artist track queuing
+	Composer   *Composer  // For composer track queuing
 }
 
 type MenuScreen struct {
@@ -596,6 +605,16 @@ type MiyooPod struct {
 	FontAlbum  font.Face
 	FontTime   font.Face
 	FontSmall  font.Face
+
+	// Arabic-capable faces (DejaVu); used when text contains Arabic script.
+	FontHeaderAR    font.Face
+	FontMenuAR      font.Face
+	FontTitleAR     font.Face
+	FontArtistAR    font.Face
+	FontAlbumAR     font.Face
+	FontTimeAR      font.Face
+	FontSmallAR     font.Face
+	ArabicFontReady bool
 
 	// Theme
 	CurrentTheme Theme
@@ -656,19 +675,14 @@ type MiyooPod struct {
 	BrightnessNeedsRestore bool // Defer brightness restore until after overlay is drawn
 
 	// Power/Display management
-	LastActivityTime     time.Time   // Last user interaction time
-	PowerButtonPressTime time.Time   // When power button was pressed (for long-hold detection)
-	PowerButtonPressed   bool        // Whether power button is currently held
-	MenuKeyPressed       bool        // Whether MENU key is currently held (for brightness control)
-	SelectKeyPressed     bool        // Whether SELECT is currently held (for combo shortcuts)
-	AutoLockMinutes      int         // Minutes of inactivity before auto-lock (0 = disabled)
+	LastActivityTime   time.Time // Last user interaction time
+	PowerButtonPressed bool      // Whether power button is currently held
+	MenuKeyPressed     bool      // Whether MENU key is currently held (brightness / quit combo)
+	AutoLockMinutes    int       // Minutes of inactivity before auto-lock (0 = disabled)
 
 	// CPU power management
-	KeepPerformanceOnLock bool        // If true, keep performance governor while locked (don't drop to powersave)
-	OriginalCPUGovernor   string      // Saved CPU governor to restore on exit
-	PowerHoldTimer        *time.Timer // 1s timer — show exit warning
-	PowerExitTimer        *time.Timer // 2s timer — graceful exit
-	PowerExitWarning      bool        // Exit warning overlay is visible
+	KeepPerformanceOnLock bool   // If true, keep performance governor while locked (don't drop to powersave)
+	OriginalCPUGovernor   string // Saved CPU governor to restore on exit
 
 	// Deferred operations (set by goroutines, handled by main loop)
 	TrackEndPending bool // Poller detected track ended, main loop calls handleTrackEnd

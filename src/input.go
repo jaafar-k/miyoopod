@@ -89,49 +89,15 @@ func (app *MiyooPod) startPowerButtonMonitor() {
 }
 
 func (app *MiyooPod) handlePowerButtonPress() {
-	if !app.PowerButtonPressed {
-		app.PowerButtonPressed = true
-		app.PowerButtonPressTime = time.Now()
-
-		app.PowerHoldTimer = time.AfterFunc(2*time.Second, func() {
-			if !app.PowerButtonPressed {
-				return
-			}
-			app.showPowerExitWarning()
-
-			app.PowerExitTimer = time.AfterFunc(3*time.Second, func() {
-				if !app.PowerButtonPressed {
-					return
-				}
-				app.exitAppGracefully()
-			})
-		})
-	}
+	app.PowerButtonPressed = true
 }
 
 func (app *MiyooPod) handlePowerButtonRelease() {
-	if app.PowerButtonPressed {
-		holdDuration := time.Since(app.PowerButtonPressTime)
-		app.PowerButtonPressed = false
-
-		app.stopPowerTimers()
-		app.hidePowerExitWarning()
-
-		if holdDuration < 5*time.Second {
-			app.toggleLock()
-		}
+	if !app.PowerButtonPressed {
+		return
 	}
-}
-
-func (app *MiyooPod) stopPowerTimers() {
-	if app.PowerHoldTimer != nil {
-		app.PowerHoldTimer.Stop()
-		app.PowerHoldTimer = nil
-	}
-	if app.PowerExitTimer != nil {
-		app.PowerExitTimer.Stop()
-		app.PowerExitTimer = nil
-	}
+	app.PowerButtonPressed = false
+	app.toggleLock()
 }
 
 func (app *MiyooPod) handleVolumeUp() {

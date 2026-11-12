@@ -24,6 +24,20 @@ It is dynamically linked (as a shared `.so`), which satisfies the LGPL
 requirement that users be able to replace or relink the library. Its license
 text and source are available from https://www.mpg123.de/.
 
+## Bundled Fonts (`assets/`)
+
+| Font | File | License |
+| --- | --- |
+| Inter Regular | `ui_font.ttf` | SIL Open Font License 1.1 |
+| DejaVu Sans | `ui_font_ar.ttf` | Bitstream Vera License / public-domain DejaVu changes |
+
+DejaVu Sans is used when rendering Arabic (and other RTL) track metadata so
+glyphs and presentation forms are available. Inter remains the default Latin UI
+font.
+
+Arabic letter-joining tables in `src/arabic_alphabet.go` are adapted from
+[goarabic](https://github.com/01walid/goarabic) (MIT License).
+
 ## Go Module Dependencies
 
 | Module | License |

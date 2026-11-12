@@ -370,8 +370,8 @@ func (app *MiyooPod) updateProgressBarOnly() {
 		return
 	}
 
-	// Don't draw progress bar over lock, volume/brightness, or power-exit overlay
-	if app.Locked || app.OverlayVisible || app.PowerExitWarning {
+	// Don't draw progress bar over lock or volume/brightness overlay
+	if app.Locked || app.OverlayVisible {
 		return
 	}
 
@@ -406,21 +406,22 @@ func (app *MiyooPod) renderNowPlayingFull() {
 	infoStartY := 80
 
 	// Title
-	dc.SetFontFace(app.FontTitle)
 	dc.SetHexColor(app.CurrentTheme.ItemTxt)
 	maxWidth := float64(SCREEN_WIDTH - infoX - 20)
 	titleText := app.truncateText(track.Title, maxWidth, app.FontTitle)
+	dc.SetFontFace(app.fontForText(track.Title, app.FontTitle))
 	dc.DrawString(titleText, float64(infoX), float64(infoStartY))
 
 	// Artist
-	dc.SetFontFace(app.FontArtist)
 	dc.SetHexColor(app.CurrentTheme.Dim)
 	artistText := app.truncateText(track.Artist, maxWidth, app.FontArtist)
+	dc.SetFontFace(app.fontForText(track.Artist, app.FontArtist))
 	dc.DrawString(artistText, float64(infoX), float64(infoStartY+35))
 
 	// Album
 	if track.Album != "" && track.Album != "Unknown Album" {
 		albumText := app.truncateText(track.Album, maxWidth, app.FontArtist)
+		dc.SetFontFace(app.fontForText(track.Album, app.FontArtist))
 		dc.DrawString(albumText, float64(infoX), float64(infoStartY+65))
 	}
 

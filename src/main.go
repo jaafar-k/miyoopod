@@ -139,6 +139,27 @@ func (app *MiyooPod) loadFonts() {
 	app.FontAlbum, _ = gg.LoadFontFace(fontPath, FONT_SIZE_ALBUM*scale)
 	app.FontTime, _ = gg.LoadFontFace(fontPath, FONT_SIZE_TIME*scale)
 	app.FontSmall, _ = gg.LoadFontFace(fontPath, FONT_SIZE_SMALL*scale)
+
+	// Arabic / RTL metadata needs a face with Arabic presentation forms.
+	arPath := "./assets/ui_font_ar.ttf"
+	arHeader, arErr := gg.LoadFontFace(arPath, FONT_SIZE_HEADER*scale)
+	if arErr != nil {
+		logMsg(fmt.Sprintf("WARNING: Arabic font missing (%v); Arabic text may not render", arErr))
+		app.ArabicFontReady = false
+		app.FontHeaderAR, app.FontMenuAR = app.FontHeader, app.FontMenu
+		app.FontTitleAR, app.FontArtistAR = app.FontTitle, app.FontArtist
+		app.FontAlbumAR, app.FontTimeAR = app.FontAlbum, app.FontTime
+		app.FontSmallAR = app.FontSmall
+		return
+	}
+	app.ArabicFontReady = true
+	app.FontHeaderAR = arHeader
+	app.FontMenuAR, _ = gg.LoadFontFace(arPath, FONT_SIZE_MENU*scale)
+	app.FontTitleAR, _ = gg.LoadFontFace(arPath, FONT_SIZE_TITLE*scale)
+	app.FontArtistAR, _ = gg.LoadFontFace(arPath, FONT_SIZE_ARTIST*scale)
+	app.FontAlbumAR, _ = gg.LoadFontFace(arPath, FONT_SIZE_ALBUM*scale)
+	app.FontTimeAR, _ = gg.LoadFontFace(arPath, FONT_SIZE_TIME*scale)
+	app.FontSmallAR, _ = gg.LoadFontFace(arPath, FONT_SIZE_SMALL*scale)
 }
 
 func (app *MiyooPod) RunUI() {
@@ -382,8 +403,8 @@ func (app *MiyooPod) setScreenWithContext(screen ScreenType, properties map[stri
 
 // handleKeyRelease handles key release events
 func (app *MiyooPod) handleKeyRelease(key Key) {
-	if key == SELECT {
-		app.SelectKeyPressed = false
+	if key == MENU {
+		app.MenuKeyPressed = false
 	}
 
 	// Handle seek release on Now Playing screen
@@ -406,14 +427,14 @@ func (app *MiyooPod) handleKey(key Key) {
 	// Update last activity time for any key press
 	app.LastActivityTime = time.Now()
 
-	// Track SELECT hold state
-	if key == SELECT {
-		app.SelectKeyPressed = true
+	// Track MENU hold state (also tracked from /dev/input for brightness combos)
+	if key == MENU {
+		app.MenuKeyPressed = true
 	}
 
-	// SELECT + START = quit
-	if key == START && app.SelectKeyPressed {
-		app.Running = false
+	// MENU + START = quit
+	if key == START && app.MenuKeyPressed {
+		app.exitAppGracefully()
 		return
 	}
 
@@ -561,7 +582,7 @@ func (app *MiyooPod) drawCurrentScreen() {
 	}
 
 	// Draw lock overlay if locked
-	if app.Locked && !app.PowerExitWarning {
+	if app.Locked {
 		app.drawLockOverlay()
 	}
 
@@ -572,11 +593,6 @@ func (app *MiyooPod) drawCurrentScreen() {
 
 	// Draw error popup overlay if active
 	app.drawErrorPopup()
-
-	// Draw power exit warning overlay if holding power button
-	if app.PowerExitWarning {
-		app.drawPowerExitWarning()
-	}
 
 	// Draw update prompt overlay if showing
 	if app.ShowingUpdatePrompt {
