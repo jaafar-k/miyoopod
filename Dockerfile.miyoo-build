@@ -1,0 +1,16 @@
+FROM golang:1.22-bullseye
+
+# Bullseye security pool currently 404s for some indexed packages; pin a consistent snapshot.
+RUN printf '%s\n' \
+      'deb http://snapshot.debian.org/archive/debian/20250203T000000Z bullseye main' \
+      'deb http://snapshot.debian.org/archive/debian-security/20250203T000000Z bullseye-security main' \
+      'deb http://snapshot.debian.org/archive/debian/20250203T000000Z bullseye-updates main' \
+      > /etc/apt/sources.list && \
+    echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99snapshot && \
+    echo 'Acquire::Retries "3";' >> /etc/apt/apt.conf.d/99snapshot
+
+RUN dpkg --add-architecture armhf && apt-get update && \
+    apt-get install -y gcc-arm-linux-gnueabihf libsdl2-dev:armhf libsdl2-mixer-dev:armhf zip binutils-arm-linux-gnueabihf && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
