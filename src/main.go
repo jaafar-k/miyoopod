@@ -664,6 +664,12 @@ func audioGetDuration() float64 {
 	return float64(C.audio_get_duration())
 }
 
+func audioSetCachedDuration(duration float64) {
+	if duration > 0 {
+		C.audio_set_cached_duration(C.double(duration))
+	}
+}
+
 func audioGetDurationForFile(path string) float64 {
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))

@@ -16,9 +16,6 @@ func (app *MiyooPod) startPlaybackPoller() {
 		if app.Playing != nil && app.Playing.State != StateStopped {
 			state := audioGetState()
 
-			if state.Position >= 0 {
-				app.Playing.Position = state.Position
-			}
 			if state.Duration > 0 {
 				if app.Playing.Track != nil && app.Playing.Track.Duration == 0 {
 					app.Playing.Track.Duration = state.Duration
@@ -40,12 +37,41 @@ func (app *MiyooPod) startPlaybackPoller() {
 
 			if state.IsPaused && app.Playing.State != StatePaused {
 				app.Playing.State = StatePaused
+				if app.Playing.PauseStarted.IsZero() {
+					app.Playing.PauseStarted = time.Now()
+				}
 				app.NPCacheDirty = true
 				app.requestRedraw()
 			} else if state.IsPlaying && app.Playing.State != StatePlaying {
 				app.Playing.State = StatePlaying
+				if !app.Playing.PauseStarted.IsZero() {
+					app.Playing.PausedTotal += time.Since(app.Playing.PauseStarted)
+					app.Playing.PauseStarted = time.Time{}
+				}
 				app.NPCacheDirty = true
 				app.requestRedraw()
+			}
+
+			// Prefer mixer position; fall back to wall clock when codec returns 0/-1.
+			if state.Position > 0.05 {
+				app.Playing.Position = state.Position
+			} else if state.IsPlaying || app.Playing.State == StatePlaying {
+				if !app.Playing.PlayStartedAt.IsZero() {
+					paused := app.Playing.PausedTotal
+					if !app.Playing.PauseStarted.IsZero() {
+						paused += time.Since(app.Playing.PauseStarted)
+					}
+					elapsed := time.Since(app.Playing.PlayStartedAt) - paused
+					if elapsed < 0 {
+						elapsed = 0
+					}
+					app.Playing.Position = elapsed.Seconds()
+					if app.Playing.Duration > 0 && app.Playing.Position > app.Playing.Duration {
+						app.Playing.Position = app.Playing.Duration
+					}
+				}
+			} else if state.Position >= 0 {
+				app.Playing.Position = state.Position
 			}
 
 			if state.Finished {
@@ -92,6 +118,15 @@ func (app *MiyooPod) mpvLoadFile(path string) error {
 	// loadSettings may have set it too early (during Init) when MI_AO isn't ready yet.
 	setMiAOVolume(app.SystemVolume)
 
+	// Probe duration from the file path only when unknown. Mix_MusicDuration often
+	// returns -1 for music loaded via Mix_LoadMUS_RW (RAM playback).
+	fileDuration := 0.0
+	if app.Playing != nil && app.Playing.Track != nil && app.Playing.Track.Duration > 0 {
+		fileDuration = app.Playing.Track.Duration
+	} else {
+		fileDuration = audioGetDurationForFile(path)
+	}
+
 	if info, err := os.Stat(path); err == nil && info.Size() > 0 && info.Size() < maxRAMSize {
 		loadErr := audioLoadFileToMemory(path)
 		if loadErr == nil {
@@ -101,6 +136,7 @@ func (app *MiyooPod) mpvLoadFile(path string) error {
 				// restored session the track is paused immediately after load,
 				// so the pre-play set above doesn't stick until this point.
 				setMiAOVolume(app.SystemVolume)
+				app.ensurePlaybackDuration(path, fileDuration)
 				return nil
 			}
 			logMsg(fmt.Sprintf("WARNING: RAM play failed (%v), falling back to streaming: %s", playErr, path))
@@ -118,7 +154,31 @@ func (app *MiyooPod) mpvLoadFile(path string) error {
 		return err
 	}
 	setMiAOVolume(app.SystemVolume)
+	app.ensurePlaybackDuration(path, fileDuration)
 	return nil
+}
+
+// ensurePlaybackDuration fills Playing/Track duration when the mixer didn't report one.
+func (app *MiyooPod) ensurePlaybackDuration(path string, probed float64) {
+	dur := audioGetDuration()
+	if dur <= 0 {
+		dur = probed
+	}
+	if dur <= 0 {
+		dur = audioGetDurationForFile(path)
+	}
+	if dur <= 0 {
+		return
+	}
+	audioSetCachedDuration(dur)
+	if app.Playing != nil {
+		if app.Playing.Duration <= 0 {
+			app.Playing.Duration = dur
+		}
+		if app.Playing.Track != nil && app.Playing.Track.Duration <= 0 {
+			app.Playing.Track.Duration = dur
+		}
+	}
 }
 
 func (app *MiyooPod) mpvTogglePause() {

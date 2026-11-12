@@ -67,6 +67,9 @@ func (app *MiyooPod) playCurrentQueueTrack() {
 	app.Playing.Track = track
 	app.Playing.State = StatePlaying
 	app.Playing.Position = 0
+	app.Playing.PlayStartedAt = time.Now()
+	app.Playing.PauseStarted = time.Time{}
+	app.Playing.PausedTotal = 0
 	// Use track duration if available, otherwise will be updated by poller
 	if track.Duration > 0 {
 		app.Playing.Duration = track.Duration

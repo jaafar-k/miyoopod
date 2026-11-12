@@ -164,10 +164,16 @@ func (app *MiyooPod) restorePlaybackState() {
 	// Pause immediately - user expects to resume manually
 	audioPause()
 	app.Playing.State = StatePaused
+	app.Playing.PauseStarted = time.Now()
+	app.Playing.PausedTotal = 0
 
 	// Set position immediately so UI shows saved position
 	if ps.Position > 0 {
 		app.Playing.Position = ps.Position
+		// Wall-clock fallback should continue from the restored offset
+		app.Playing.PlayStartedAt = time.Now().Add(-time.Duration(ps.Position * float64(time.Second)))
+	} else {
+		app.Playing.PlayStartedAt = time.Now()
 	}
 
 	app.updateCoverflowForCurrentTrack()

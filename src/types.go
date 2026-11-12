@@ -11,7 +11,7 @@ import (
 
 // App metadata
 const (
-	APP_VERSION = "0.0.9-RTL"
+	APP_VERSION = "0.0.10-RTL"
 	APP_AUTHOR  = "Danilo Fragoso"
 	SUPPORT_URL = "https://github.com/danfragoso/miyoopod"
 )
@@ -572,6 +572,10 @@ type NowPlaying struct {
 	Position float64
 	Duration float64
 	Volume   float64
+	// Wall-clock fallback when Mix_GetMusicPosition returns 0/-1
+	PlayStartedAt time.Time
+	PauseStarted  time.Time
+	PausedTotal   time.Duration
 }
 
 // --- Coverflow state ---

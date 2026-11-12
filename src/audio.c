@@ -57,7 +57,16 @@ int audio_load(const char *path) {
     }
 
     cached_duration = Mix_MusicDuration(current_music);
+    if (cached_duration < 0) {
+        cached_duration = 0.0;
+    }
     return 0;
+}
+
+void audio_set_cached_duration(double duration) {
+    if (duration > 0) {
+        cached_duration = duration;
+    }
 }
 
 // Load audio from a memory buffer (data is C-allocated, caller gives ownership).
@@ -92,6 +101,9 @@ int audio_load_mem(void *data, int size) {
     }
 
     cached_duration = Mix_MusicDuration(current_music);
+    if (cached_duration < 0) {
+        cached_duration = 0.0;
+    }
     c_log("audio_load_mem OK (playing from RAM)");
     return 0;
 }
@@ -193,7 +205,9 @@ void audio_get_state(AudioState *state) {
     state->finished = 0;
 
     if (current_music && Mix_PlayingMusic()) {
-        state->position = Mix_GetMusicPosition(current_music);
+        double pos = Mix_GetMusicPosition(current_music);
+        // Some codecs return -1 when position isn't supported
+        state->position = (pos >= 0) ? pos : 0.0;
         state->is_playing = !Mix_PausedMusic();
         state->is_paused = Mix_PausedMusic();
     }

@@ -127,6 +127,11 @@ The build process uses CGO to compile Go source with C bindings and bundles all 
 
 ## Changelog
 
+### Version 0.0.10-RTL
+
+**Bug Fixes**
+- Fixed Now Playing position/duration stuck at 0:00 when SDL_mixer omits timing for RAM-loaded tracks
+
 ### Version 0.0.9-RTL
 
 **Changes**
